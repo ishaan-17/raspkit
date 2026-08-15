@@ -144,8 +144,19 @@ def main():
                     help='sustained run for thermal drift; 0 to skip')
     args = ap.parse_args()
 
-    rng = np.random.default_rng(0)
-    frame = rng.random((SIZE, SIZE, 3), dtype=np.float32)
+    # Use a real photograph, not noise: the gate's statistic is a dark-channel
+    # mean, and uniform random noise has a dark channel near zero, so the gate
+    # would never fire and the gated timings would only ever measure the skip
+    # branch. Falls back to noise (with a warning) if the sample is missing.
+    if os.path.exists('sample_frame.png'):
+        import cv2 as _cv
+        _img = _cv.imread('sample_frame.png')
+        _img = _cv.cvtColor(_img, _cv.COLOR_BGR2RGB)
+        frame = _cv.resize(_img, (SIZE, SIZE)).astype(np.float32) / 255.0
+    else:
+        print('WARNING: sample_frame.png missing; gated timings will be invalid', flush=True)
+        rng = np.random.default_rng(0)
+        frame = rng.random((SIZE, SIZE, 3), dtype=np.float32)
 
     res = {
         'device': os.uname().machine,
